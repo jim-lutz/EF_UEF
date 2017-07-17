@@ -1,12 +1,10 @@
 # setup_wd.R
 # Jim Lutz
-# "Fri Jun 23 10:13:23 2017"
+# "Mon Jul 17 14:07:13 2017"
 
-# setup  working directories
-# be sure to start in the scripts directory
+# setup the working directories
+# the directory files are here.
+wd_data    <- "/home/jiml/HotWaterResearch/projects/CECHWT24/2016 CBECC UEF_EF/directories 2017-07-17" # no trailing /
 
-# Gary's data files are here.
-wd_data    <- "/home/jiml/HotWaterResearch/projects/Pipe Test Data/SoCalGas/Pressure Drop Tests" # no trailing /
-
-wd_charts  <- "/home/jiml/HotWaterResearch/projects/Pipe Test Data/pipe_data_scripts/charts/"     # use this for charts, ggsave puts in /
+wd_charts  <- "/home/jiml/HotWaterResearch/projects/CECHWT24/2016 CBECC UEF_EF/directories 2017-07-17/charts/"     # use this for charts, ggsave puts in /
 
