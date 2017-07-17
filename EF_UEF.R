@@ -47,13 +47,20 @@ names(DT_DOE)
 
 # find the Type_of_Heater s
 DT_DOE[,list(unique(type))]
-  # 1:        Electric Storage Water Heater
-  # 2: Instantaneous Gas-fired Water Heater
-  # 3:       Gas-fired Storage Water Heater
-  # 4:            Grid-Enabled Water Heater
-  # 5:                Tabletop Water Heater
-  # 6:       Oil-fired Storage Water Heater
-  # 7:  Instantaneous Electric Water Heater
+DT_DOE[,list(nmodels=length(model)), by=type]
+    #                                    type nmodels
+    # 1:        Electric Storage Water Heater      50
+    # 2: Instantaneous Gas-fired Water Heater     327
+    # 3:       Gas-fired Storage Water Heater     158
+    # 4:            Grid-Enabled Water Heater      14
+    # 5:                Tabletop Water Heater       1
+    # 6:       Oil-fired Storage Water Heater       2
+    # 7:  Instantaneous Electric Water Heater      15
+
+# save as .csv
+write_csv(DT_DOE, path = paste0(wd_data,"/DOE_WHs.csv") )
+
+
 
 # find the CEC Small Gas & Oil file
 CEC_sgo_fn <- grep("Small Gas", csv_files, value=TRUE)
@@ -72,7 +79,7 @@ setnames(DT_CEC_sgo,
 )
 
 # keep only the desired fields in CEC_sgo
-DT_CEC_sgo <- DT_CEC_sgo[,c("mfr", "brand", "model", "fuel", "volume", "FHR", "MaxGPM", "input", "RE", "Eannual", "EF")]
+DT_CEC_sgo <- DT_CEC_sgo[,c("mfr", "brand", "model", "fuel", "volume", "FHR", "input", "RE", "EF")]
 
 # see what we've got so far
 tables()
@@ -111,6 +118,9 @@ DT_DOE[brand=="A.O. SMITH" & Vol<=45 & Vol>=35 & type=="Gas-fired Storage Water 
 DT_DOE[model=="FMDV 40 250"]
 DOE_AOSMITH40 <- DT_DOE[brand=="A.O. SMITH" & Vol<=45 & Vol>=35 & type=="Gas-fired Storage Water Heater",]
 
+# save as .csv
+write_csv(DOE_AOSMITH40, path = paste0(wd_data,"/DOE_AOSMITH40.csv") )
+
 
 # CEC
 names(DT_CEC_sgo)
@@ -119,5 +129,12 @@ DT_CEC_sgo[brand=="A O Smith Water Products" & volume<=40 & volume>=35 & fuel=="
 # there's 89 of them
 CEC_AOSMITH40 <- DT_CEC_sgo[brand=="A O Smith Water Products" & volume<=40 & volume>=35 & fuel=="Natural Gas",]
 
-# see if any have FMDV in the model
-CEC_AOSMITH40[grepl("FMDV",model)]
+# keep the ones with 40 100 or 40 250 in  model
+CEC_AOSMITH40 <- rbind(CEC_AOSMITH40[grepl("40",model)][grepl("100",model)],CEC_AOSMITH40[grepl("40",model)][grepl("250",model)])
+
+# save as .csv
+write_csv(CEC_AOSMITH40, path = paste0(wd_data,"/CEC_AOSMITH40.csv") )
+
+
+
+
