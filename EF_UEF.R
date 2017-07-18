@@ -45,6 +45,11 @@ c12<-eval(names(DT_DOE)[12])
 DT_DOE[,eval(c12):=NULL]
 names(DT_DOE)
 
+# list basic model numbers by mfr
+DT_DOE[,list(nbmodels=length(basic_model_DOE), nmodels=length(model)), by=brand_DOE][order(-nbmodels)]
+DT_DOE[, list(nmodels=length(model)), by=c("brand_DOE","basic_model_DOE")][basic_model_DOE=="N" | basic_model_DOE=="Y"][order(-nmodels)]
+
+
 # find the type_DOE s
 DT_DOE[,list(nmodels=length(model)), by=type_DOE]
     #                                type_DOE nmodels
