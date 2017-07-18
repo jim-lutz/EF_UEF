@@ -15,7 +15,7 @@ csv_files <- list.files(path = wd_data, pattern = ".+.csv",
 str(csv_files)
 
 # find and read the DOE file
-DOE_fn <- grep("DOE", csv_files, value=TRUE)
+DOE_fn <- grep("DOE_CCMS", csv_files, value=TRUE)
 
 DT_DOE <- as.data.table(read_csv(DOE_fn,comment = "#"))
 
@@ -27,7 +27,8 @@ setnames(DT_DOE,
          c("Brand_Name", "Basic_Model_Number", "Individual_Model_Number", "Type_of_Heater",
            "Rated_Storage_Volume","Draw_Pattern","Uniform_Energy_Factor",
            "Energy_Factor","First_Hour_Rating","Maximum_Gallons_Per_Minute","Recovery_Efficiency"), # old names
-         c("brand", "basic_model", "model", "type", "Vol","bin","UEF","EF","FHR","MaxGPM","RE")  # new names
+         c("brand_DOE", "basic_model_DOE", "model", "type_DOE", "Vol_DOE","bin_DOE",
+           "UEF_DOE","EF_DOE","FHR_DOE","MaxGPM_DOE","RE_DOE")  # new names
          )
 
 # check if any certification numbers mean anything
@@ -44,11 +45,9 @@ c12<-eval(names(DT_DOE)[12])
 DT_DOE[,eval(c12):=NULL]
 names(DT_DOE)
 
-
-# find the Type_of_Heater s
-DT_DOE[,list(unique(type))]
-DT_DOE[,list(nmodels=length(model)), by=type]
-    #                                    type nmodels
+# find the type_DOE s
+DT_DOE[,list(nmodels=length(model)), by=type_DOE]
+    #                                type_DOE nmodels
     # 1:        Electric Storage Water Heater      50
     # 2: Instantaneous Gas-fired Water Heater     327
     # 3:       Gas-fired Storage Water Heater     158
@@ -59,8 +58,6 @@ DT_DOE[,list(nmodels=length(model)), by=type]
 
 # save as .csv
 write_csv(DT_DOE, path = paste0(wd_data,"/DOE_WHs.csv") )
-
-
 
 # find the CEC Small Gas & Oil file
 CEC_sgo_fn <- grep("Small Gas", csv_files, value=TRUE)
@@ -74,67 +71,58 @@ setnames(DT_CEC_sgo,
          c( "Manufacturer", "Brand", "Model Number", "Energy Source", "Rated Volume",
             "First Hour Rating", "Maximum GPM", "Input BTUH", "Recovery Efficiency",
             "Annual Energy Consumption KBTU", "Energy Factor"), # old names
-         c("mfr", "brand", "model", "fuel", "volume", "FHR", "MaxGPM", "input", "RE", 
-           "Eannual", "EF")  # new names
+         c("mfr_CEC", "brand_CEC", "model", "fuel_CEC", "volume_CEC", 
+           "FHR_CEC", "MaxGPM_CEC", "input_CEC", "RE_CEC", 
+           "Eannual_CEC", "EF_CEC")  # new names
 )
 
 # keep only the desired fields in CEC_sgo
-DT_CEC_sgo <- DT_CEC_sgo[,c("mfr", "brand", "model", "fuel", "volume", "FHR", "input", "RE", "EF")]
+DT_CEC_sgo <- DT_CEC_sgo[,c("mfr_CEC", "brand_CEC", "model", "fuel_CEC", "volume_CEC", 
+                            "FHR_CEC", "input_CEC", "RE_CEC", "EF_CEC")]
 
 # see what we've got so far
 tables()
 
 # compare brand & mfr
-DT_CEC_sgo[,list(unique(mfr))] # 38
-DT_CEC_sgo[,list(unique(brand))] # 147
-DT_DOE[,list(unique(brand))] # 26
+DT_CEC_sgo[,list(unique(mfr_CEC))] # 38
+DT_CEC_sgo[,list(unique(brand_CEC))] # 147
+DT_DOE[,list(unique(brand_DOE))] # 26
 
-DT_DOE[,list(unique(type))]
-  # 1:        Electric Storage Water Heater
-  # 2: Instantaneous Gas-fired Water Heater
-  # 3:       Gas-fired Storage Water Heater
-  # 4:            Grid-Enabled Water Heater
-  # 5:                Tabletop Water Heater
-  # 6:       Oil-fired Storage Water Heater
-  # 7:  Instantaneous Electric Water Heater
+DT_DOE[,list(num=length(model)), by=type_DOE]
+    #                                type_DOE num
+    # 1:        Electric Storage Water Heater  50
+    # 2: Instantaneous Gas-fired Water Heater 327
+    # 3:       Gas-fired Storage Water Heater 158
+    # 4:            Grid-Enabled Water Heater  14
+    # 5:                Tabletop Water Heater   1
+    # 6:       Oil-fired Storage Water Heater   2
+    # 7:  Instantaneous Electric Water Heater  15
 
-DT_CEC_sgo[,list(unique(fuel))]
-  # 1:               Natural Gas
-  # 2:                       LPG
-  # 3:                       Oil
-  # 4: Combo (Natural Gas & Oil)
+DT_CEC_sgo[,list(num=length(model)), by=fuel_CEC]
+    #                     fuel_CEC  num
+    # 1:               Natural Gas 7105
+    # 2:                       LPG 5784
+    # 3:                       Oil   22
+    # 4: Combo (Natural Gas & Oil)   41
 
+# try finding any model numbers in CEC that match DOE
+DT_CEC_match <- DT_CEC_sgo[model %in% DT_DOE$model,] # 139 models
+names(DT_CEC_match)
+setkey(DT_CEC_match, model)
 
-# find some AO Smith 40 gallon couple gas-fired storage models in common?
-# DOE
-DT_DOE[,list(length(model)), by=brand]
-DT_DOE[brand=="A.O. SMITH" & Vol<=45 & Vol>=35 & type=="Gas-fired Storage Water Heater",]
-    # brand basic_model       model                           type Vol    bin  UEF EF FHR MaxGPM RE
-    # 1: A.O. SMITH           Y  GUF 40 100 Gas-fired Storage Water Heater  38 Medium 0.65 NA  68     NA 73
-    # 2: A.O. SMITH           Y FMDV 40 250 Gas-fired Storage Water Heater  38 Medium 0.59 NA  57     NA 76
-    # 3: A.O. SMITH  GUF 40 100  GUF 40 100 Gas-fired Storage Water Heater  38 Medium 0.65 NA  67     NA 73
-    # 4: A.O. SMITH FMDV 40 250 FMDV 40 250 Gas-fired Storage Water Heater  39 Medium 0.62 NA  57     NA 77
-# Huh? 2 models twices with different values?
-DT_DOE[model=="FMDV 40 250"]
-DOE_AOSMITH40 <- DT_DOE[brand=="A.O. SMITH" & Vol<=45 & Vol>=35 & type=="Gas-fired Storage Water Heater",]
+# and any models in DOE that match CEC models
+DT_DOE_match <- DT_DOE[model %in% (DT_CEC_sgo$model) ] # 210 models
+names(DT_DOE_match)
+setkey(DT_DOE_match, model)
 
-# save as .csv
-write_csv(DOE_AOSMITH40, path = paste0(wd_data,"/DOE_AOSMITH40.csv") )
-
-
-# CEC
-names(DT_CEC_sgo)
-DT_CEC_sgo[,list(length(mfr)), by=brand]
-DT_CEC_sgo[brand=="A O Smith Water Products" & volume<=40 & volume>=35 & fuel=="Natural Gas",]
-# there's 89 of them
-CEC_AOSMITH40 <- DT_CEC_sgo[brand=="A O Smith Water Products" & volume<=40 & volume>=35 & fuel=="Natural Gas",]
-
-# keep the ones with 40 100 or 40 250 in  model
-CEC_AOSMITH40 <- rbind(CEC_AOSMITH40[grepl("40",model)][grepl("100",model)],CEC_AOSMITH40[grepl("40",model)][grepl("250",model)])
+DT_match <- merge(DT_DOE_match,DT_CEC_match, all=TRUE)
+names(DT_match)
+setcolorder(DT_match, 
+            c("model", "basic_model_DOE", "brand_DOE", "mfr_CEC", "brand_CEC", 
+              "type_DOE", "fuel_CEC", "bin_DOE", 
+              "Vol_DOE", "volume_CEC", "UEF_DOE", "EF_DOE", "EF_CEC", 
+              "MaxGPM_DOE", "FHR_DOE", "FHR_CEC", "RE_DOE", "RE_CEC", "input_CEC"))
 
 # save as .csv
-write_csv(CEC_AOSMITH40, path = paste0(wd_data,"/CEC_AOSMITH40.csv") )
-
-
-
+write_csv(DT_match, path = paste0(wd_data,"/DOE_CEC_sgo.csv") )
 
