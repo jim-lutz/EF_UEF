@@ -46,6 +46,12 @@ library(tidyverse)
 if(!require(data.table)){install.packages("data.table")}
 library(data.table)
 
+# work with stringi
+if(!require(stringi)){install.packages("stringi")}
+library(stringi)
+
+
+
 # change the default background for ggplot2 to white, not gray
 theme_set( theme_bw() )
 

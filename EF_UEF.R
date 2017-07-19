@@ -8,7 +8,7 @@ source("setup.R")
 # set the working directory names 
 source("setup_wd.R")
 
-# get a list of all the xls files in the wd_data subdirectories
+# get a list of all the CEC_*.csv files in the wd_data subdirectories
 csv_files <- list.files(path = wd_data, pattern = ".+.csv", 
                         full.names = TRUE, recursive = TRUE,
                         ignore.case = TRUE)
@@ -49,7 +49,6 @@ names(DT_DOE)
 DT_DOE[,list(nbmodels=length(basic_model_DOE), nmodels=length(model)), by=brand_DOE][order(-nbmodels)]
 DT_DOE[, list(nmodels=length(model)), by=c("brand_DOE","basic_model_DOE")][basic_model_DOE=="N" | basic_model_DOE=="Y"][order(-nmodels)]
 
-
 # find the type_DOE s
 DT_DOE[,list(nmodels=length(model)), by=type_DOE]
     #                                type_DOE nmodels
@@ -61,73 +60,68 @@ DT_DOE[,list(nmodels=length(model)), by=type_DOE]
     # 6:       Oil-fired Storage Water Heater       2
     # 7:  Instantaneous Electric Water Heater      15
 
+# sort by model number
+setkey(DT_DOE, model)
+
 # save as .csv
 write_csv(DT_DOE, path = paste0(wd_data,"/DOE_WHs.csv") )
 
-# find the CEC Small Gas & Oil file
-CEC_sgo_fn <- grep("Small Gas", csv_files, value=TRUE)
+# find all the CEC *.csv files
+CEC_fns <- grep("/CEC_", csv_files, value=TRUE)
 
-DT_CEC_sgo <- as.data.table(read_csv(CEC_sgo_fn,comment = "#"))
+# find all the fieldnames in those files
+# see fieldnames_CEC.sh
+fldn_fn <- paste0(wd_data,"/fieldnames_CEC.csv")
+DT_fldn <- as.data.table(read_csv(fldn_fn,comment = "#"))
 
-# clean up CEC field names
-names(DT_CEC_sgo)
+# get the WH types from the file names
+WH_types <- gsub(".+CEC_(.+) 2017-07.+$", "\\1", CEC_fns, perl=TRUE) 
 
-setnames(DT_CEC_sgo,
-         c( "Manufacturer", "Brand", "Model Number", "Energy Source", "Rated Volume",
-            "First Hour Rating", "Maximum GPM", "Input BTUH", "Recovery Efficiency",
-            "Annual Energy Consumption KBTU", "Energy Factor"), # old names
-         c("mfr_CEC", "brand_CEC", "model", "fuel_CEC", "volume_CEC", 
-           "FHR_CEC", "MaxGPM_CEC", "input_CEC", "RE_CEC", 
-           "Eannual_CEC", "EF_CEC")  # new names
-)
 
-# keep only the desired fields in CEC_sgo
-DT_CEC_sgo <- DT_CEC_sgo[,c("mfr_CEC", "brand_CEC", "model", "fuel_CEC", "volume_CEC", 
-                            "FHR_CEC", "input_CEC", "RE_CEC", "EF_CEC")]
+# loop through all the CEC_*.csv files 
+for (n in 1:8) {
+  
+  # see if we're getting them all
+  cat(n, sep = "\n")
+  
+  # n=2 # for testing only
 
-# see what we've got so far
-tables()
+  # show the WH type
+  cat(WH_types[n], sep = "\n")
 
-# compare brand & mfr
-DT_CEC_sgo[,list(unique(mfr_CEC))] # 38
-DT_CEC_sgo[,list(unique(brand_CEC))] # 147
-DT_DOE[,list(unique(brand_DOE))] # 26
+  # read the file in as a data.table
+  DT_CEC <- as.data.table(read_csv(CEC_fns[n],comment = "#"))
+  
+  # find field names in the CEC data.table
+  DT_fldn[DT_fldn$fld_old %in% names(DT_CEC)]
+  
+  # make lists of corresponding old and new names
+  names_old <- DT_fldn[DT_fldn$fld_old %in% names(DT_CEC)][[1]]
+  names_new <- DT_fldn[DT_fldn$fld_old %in% names(DT_CEC)][[2]]
+  
+  # change the names in the CEC data.table
+  setnames(DT_CEC, names_old, names_new)
+ 
+  # drop any columns that are all NAs
+  DT_CEC[,colSums(!is.na(DT_CEC)) > 0]
+  DT_CEC <- DT_CEC[,which(unlist(lapply(DT_CEC, function(x)!all(is.na(x))))),with=F]
+   
+  # find any model numbers in CEC that match DOE
+  DT_CEC_match <- DT_CEC[model %in% DT_DOE$model,]
+  setkey(DT_CEC_match, model)
+  
+  DT_match <- merge(DT_CEC_match, DT_DOE)
+  names(DT_match)
+  
+  # get rid of columns of all NAs
+  DT_match[,colSums(!is.na(DT_match)) > 0]
+  DT_match <- DT_match[,which(unlist(lapply(DT_match, function(x)!all(is.na(x))))),with=F]
+  names(DT_match)
+  
+  # save as .csv
+  write_csv(DT_match, path = paste0(wd_data,"/DOE_CEC_",WH_types[n],".csv") )
+  
+}
 
-DT_DOE[,list(num=length(model)), by=type_DOE]
-    #                                type_DOE num
-    # 1:        Electric Storage Water Heater  50
-    # 2: Instantaneous Gas-fired Water Heater 327
-    # 3:       Gas-fired Storage Water Heater 158
-    # 4:            Grid-Enabled Water Heater  14
-    # 5:                Tabletop Water Heater   1
-    # 6:       Oil-fired Storage Water Heater   2
-    # 7:  Instantaneous Electric Water Heater  15
 
-DT_CEC_sgo[,list(num=length(model)), by=fuel_CEC]
-    #                     fuel_CEC  num
-    # 1:               Natural Gas 7105
-    # 2:                       LPG 5784
-    # 3:                       Oil   22
-    # 4: Combo (Natural Gas & Oil)   41
-
-# try finding any model numbers in CEC that match DOE
-DT_CEC_match <- DT_CEC_sgo[model %in% DT_DOE$model,] # 139 models
-names(DT_CEC_match)
-setkey(DT_CEC_match, model)
-
-# and any models in DOE that match CEC models
-DT_DOE_match <- DT_DOE[model %in% (DT_CEC_sgo$model) ] # 210 models
-names(DT_DOE_match)
-setkey(DT_DOE_match, model)
-
-DT_match <- merge(DT_DOE_match,DT_CEC_match, all=TRUE)
-names(DT_match)
-setcolorder(DT_match, 
-            c("model", "basic_model_DOE", "brand_DOE", "mfr_CEC", "brand_CEC", 
-              "type_DOE", "fuel_CEC", "bin_DOE", 
-              "Vol_DOE", "volume_CEC", "UEF_DOE", "EF_DOE", "EF_CEC", 
-              "MaxGPM_DOE", "FHR_DOE", "FHR_CEC", "RE_DOE", "RE_CEC", "input_CEC"))
-
-# save as .csv
-write_csv(DT_match, path = paste0(wd_data,"/DOE_CEC_sgo.csv") )
 
